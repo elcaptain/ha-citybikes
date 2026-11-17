@@ -20,7 +20,7 @@ async def test_card_registered_and_served(
     """Test the card loads on every dashboard and its file is served."""
     await setup_integration(hass, mock_config_entry)
 
-    assert "/citybikes/citybikes-card.js?v=1.0.0" in hass.data[DATA_EXTRA_MODULE_URL].urls
+    assert "/citybikes/citybikes-card.js?v=1.0.1" in hass.data[DATA_EXTRA_MODULE_URL].urls
 
     client = await hass_client()
     response = await client.get("/citybikes/citybikes-card.js")

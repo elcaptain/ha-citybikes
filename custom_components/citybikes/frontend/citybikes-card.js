@@ -5,9 +5,13 @@
  * available bikes, e-bikes and empty docks, with a dock occupancy bar.
  */
 
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 const PLATFORM = "citybikes";
 const KEYS = ["free_bikes", "free_ebikes", "empty_slots", "last_reported"];
+// Stations up to this many docks get one bar segment per dock. Bigger stations
+// (some have hundreds) and placeholder counts for dockless networks get a
+// continuous bar, because the segments would be too thin to see.
+const MAX_SEGMENTS = 40;
 
 const STYLE = `
   :host { display: block; }
@@ -66,7 +70,10 @@ const STYLE = `
   }
   .bar span { display: block; height: 100%; }
   .bar .bikes { background: var(--primary-color); }
-  .bar .ebikes { background: var(--accent-color, var(--success-color, #43a047)); }
+  .bar .ebikes { background: var(--success-color, #43a047); }
+  .bar.docks { gap: 2px; background: none; border-radius: 0; }
+  .bar.docks span { flex: 1; min-width: 0; border-radius: 2px; }
+  .bar.docks .free { background: var(--divider-color); }
   .legend {
     grid-column: 1 / -1;
     display: flex;
@@ -77,6 +84,7 @@ const STYLE = `
   }
   .legend span { display: inline-flex; align-items: center; gap: 4px; }
   .legend ha-icon { --mdc-icon-size: 16px; }
+  .legend .ebikes ha-icon { color: var(--success-color, #43a047); }
   .unavailable .count, .unavailable .bar { opacity: 0.4; }
   .empty-state { padding: 16px; color: var(--secondary-text-color); }
 `;
@@ -250,19 +258,11 @@ class CityBikesCard extends HTMLElement {
     if (bikes === 0) countClass = "empty";
     else if (bikes !== null && bikes <= 2) countClass = "low";
 
-    const total = (bikes ?? 0) + (docks ?? 0);
-    const pct = (n) => (total ? (100 * (n ?? 0)) / total : 0);
-    const mechanical = ebikes === null ? bikes : Math.max((bikes ?? 0) - ebikes, 0);
-    const bar = total
-      ? `<div class="bar" role="img" aria-label="${bikes ?? 0} bikes, ${docks ?? 0} empty docks">
-          <span class="bikes" style="width:${pct(mechanical)}%"></span>
-          ${ebikes !== null ? `<span class="ebikes" style="width:${pct(ebikes)}%"></span>` : ""}
-        </div>`
-      : "";
+    const bar = this._renderBar(bikes, ebikes, docks);
 
     const legend = [
       ebikes !== null
-        ? `<span><ha-icon icon="mdi:bicycle-electric"></ha-icon>${ebikes} e-bikes</span>`
+        ? `<span class="ebikes"><ha-icon icon="mdi:bicycle-electric"></ha-icon>${ebikes} e-bikes</span>`
         : "",
       docks !== null ? `<span><ha-icon icon="mdi:parking"></ha-icon>${docks} empty docks</span>` : "",
     ].join("");
@@ -278,6 +278,32 @@ class CityBikesCard extends HTMLElement {
         ${bar}
         ${legend ? `<div class="legend">${legend}</div>` : ""}
       </div>`;
+  }
+
+  _renderBar(bikes, ebikes, docks) {
+    // Virtual and dockless stations report no empty docks: there is nothing to fill.
+    if (bikes === null || docks === null) return "";
+    const total = bikes + docks;
+    if (!total) return "";
+    const eb = Math.min(ebikes ?? 0, bikes);
+    const parts = [
+      ["bikes", bikes - eb],
+      ["ebikes", eb],
+      ["free", docks],
+    ];
+    const label = `${bikes} bikes, ${docks} empty docks`;
+
+    if (total <= MAX_SEGMENTS) {
+      const segments = parts
+        .map(([cls, n]) => `<span class="${cls}"></span>`.repeat(n))
+        .join("");
+      return `<div class="bar docks" role="img" aria-label="${label}">${segments}</div>`;
+    }
+    const segments = parts
+      .filter(([cls, n]) => cls !== "free" && n)
+      .map(([cls, n]) => `<span class="${cls}" style="width:${(100 * n) / total}%"></span>`)
+      .join("");
+    return `<div class="bar" role="img" aria-label="${label}">${segments}</div>`;
   }
 
   _moreInfo(entityId) {
