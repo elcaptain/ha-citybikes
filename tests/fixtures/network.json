@@ -1,0 +1,35 @@
+{
+  "network": {
+    "id": "mock-network",
+    "name": "Mock Network",
+    "href": "/v2/networks/mock-network",
+    "location": {
+      "latitude": 32.87,
+      "longitude": -117.22,
+      "city": "Test City",
+      "country": "US"
+    },
+    "stations": [
+      {
+        "id": "station-1",
+        "name": "Station 1",
+        "latitude": 32.87336,
+        "longitude": -117.22743,
+        "timestamp": "2026-11-17T10:00:00.000000Z",
+        "free_bikes": 5,
+        "empty_slots": 8,
+        "extra": { "uid": "uid-1", "ebikes": 2 }
+      },
+      {
+        "id": "station-2",
+        "name": "Station 2",
+        "latitude": 32.88336,
+        "longitude": -117.22743,
+        "timestamp": "2026-11-17T10:00:00.000000Z",
+        "free_bikes": 0,
+        "empty_slots": 12,
+        "extra": { "uid": "uid-2" }
+      }
+    ]
+  }
+}

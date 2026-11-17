@@ -1,0 +1,26 @@
+{
+  "networks": [
+    {
+      "id": "far-network",
+      "name": "Far Network",
+      "href": "/v2/networks/far-network",
+      "location": {
+        "latitude": 52.52,
+        "longitude": 13.4,
+        "city": "Berlin",
+        "country": "DE"
+      }
+    },
+    {
+      "id": "mock-network",
+      "name": "Mock Network",
+      "href": "/v2/networks/mock-network",
+      "location": {
+        "latitude": 32.87,
+        "longitude": -117.22,
+        "city": "Test City",
+        "country": "US"
+      }
+    }
+  ]
+}

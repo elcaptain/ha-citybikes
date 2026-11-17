@@ -1,0 +1,15 @@
+{
+  "entity": {
+    "sensor": {
+      "empty_slots": {
+        "default": "mdi:parking"
+      },
+      "free_bikes": {
+        "default": "mdi:bike"
+      },
+      "free_ebikes": {
+        "default": "mdi:bicycle-electric"
+      }
+    }
+  }
+}

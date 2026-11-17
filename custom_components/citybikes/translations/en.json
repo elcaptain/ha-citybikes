@@ -1,0 +1,89 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Service is already configured",
+            "cannot_connect": "Failed to connect",
+            "unknown": "Unexpected error"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "stations": {
+                "data": {
+                    "stations": "Stations"
+                },
+                "data_description": {
+                    "stations": "Stations to monitor, closest to your home first. You can add more later."
+                },
+                "description": "Pick the {network} stations you want to follow."
+            },
+            "user": {
+                "data": {
+                    "network": "Network"
+                },
+                "data_description": {
+                    "network": "The bike-share network, closest to your home first."
+                }
+            }
+        }
+    },
+    "config_subentries": {
+        "station": {
+            "abort": {
+                "entry_not_loaded": "The network is not loaded. Wait until it is available again, then try again.",
+                "no_stations": "All stations of this network are already added."
+            },
+            "entry_type": "Station",
+            "initiate_flow": {
+                "user": "Add station"
+            },
+            "step": {
+                "user": {
+                    "data": {
+                        "station_id": "Station"
+                    },
+                    "data_description": {
+                        "station_id": "The station to monitor, closest to your home first."
+                    },
+                    "description": "Pick a {network} station to follow."
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "empty_slots": {
+                "name": "Empty docks",
+                "unit_of_measurement": "docks"
+            },
+            "free_bikes": {
+                "name": "Available bikes",
+                "unit_of_measurement": "bikes"
+            },
+            "free_ebikes": {
+                "name": "Available e-bikes",
+                "unit_of_measurement": "bikes"
+            },
+            "last_reported": {
+                "name": "Last reported"
+            }
+        }
+    },
+    "exceptions": {
+        "update_failed": {
+            "message": "Error fetching station data for {network} from CityBikes."
+        }
+    },
+    "issues": {
+        "deprecated_yaml_import_issue_cannot_connect": {
+            "description": "Configuring {integration_title} using YAML is being removed.\n\nWhile importing your YAML configuration, Home Assistant could not reach the CityBikes API. Check your internet connection and restart Home Assistant to try again, or remove the `{domain}` sensor platform from your `configuration.yaml` file and set the integration up from the UI.",
+            "title": "The {integration_title} YAML configuration import failed"
+        },
+        "deprecated_yaml_import_issue_unknown_network": {
+            "description": "Configuring {integration_title} using YAML is being removed.\n\nWhile importing your YAML configuration, Home Assistant found that CityBikes does not know the `network` set in your `configuration.yaml` file. Correct the network ID and restart Home Assistant to try again, or remove the `{domain}` sensor platform and set the integration up from the UI.",
+            "title": "The {integration_title} YAML configuration import failed"
+        }
+    }
+}
