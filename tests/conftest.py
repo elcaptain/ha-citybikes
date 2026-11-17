@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from citybikes.model import Network
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, load_json_object_fixture
+from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
+from syrupy.assertion import SnapshotAssertion
 
 from custom_components.citybikes.const import (
     CONF_NETWORK,
@@ -14,6 +16,12 @@ from custom_components.citybikes.const import (
     SUBENTRY_TYPE_STATION,
 )
 from homeassistant.config_entries import ConfigSubentryData
+
+
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    """Use the Home Assistant snapshot format, whatever order plugins load in."""
+    return snapshot.use_extension(HomeAssistantSnapshotExtension)
 
 
 @pytest.fixture

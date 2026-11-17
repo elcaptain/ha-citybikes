@@ -24,6 +24,9 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # Uses the built-in citybikes domain, so Home Assistant shows the core
+          # brand icon. Brands only matter for the catalog, which this is not in.
+          ignore: brands
 
   tests:
     runs-on: ubuntu-latest
