@@ -5,7 +5,7 @@
  * available bikes, e-bikes and empty docks, with a dock occupancy bar.
  */
 
-const VERSION = "1.2.0";
+const VERSION = "1.2.1";
 const PLATFORM = "citybikes";
 const KEYS = ["free_bikes", "free_ebikes", "empty_slots", "last_reported"];
 // Stations up to this many docks get one bar segment per dock. Bigger stations
@@ -95,37 +95,6 @@ function escapeHtml(value) {
     /[&<>"']/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
   );
-}
-
-// Images uploaded in the card editor are stored by Home Assistant's image upload
-// and served at a permanent address. Other media is resolved when the card loads.
-const UPLOAD_PREFIX = "media-source://image_upload/";
-const UPLOAD_URL = /^\/api\/image\/serve\/([^/]+)\//;
-
-/** Return the `image` option for a value picked in the editor's media field. */
-function imageFromMedia(media) {
-  const id = media?.media_content_id;
-  if (!id) return undefined;
-  return id.startsWith(UPLOAD_PREFIX)
-    ? `/api/image/serve/${id.slice(UPLOAD_PREFIX.length)}/original`
-    : id;
-}
-
-/** Return the editor's media field value for an `image` option, if it is media. */
-function mediaFromImage(image) {
-  if (typeof image !== "string") return undefined;
-  const upload = image.match(UPLOAD_URL);
-  if (upload) {
-    return {
-      media_content_id: UPLOAD_PREFIX + upload[1],
-      media_content_type: "image",
-      metadata: { title: "Bike image", media_class: "image", thumbnail: image },
-    };
-  }
-  if (image.startsWith("media-source://")) {
-    return { media_content_id: image, media_content_type: "image" };
-  }
-  return undefined;
 }
 
 function numeric(stateObj) {
@@ -389,6 +358,26 @@ class CityBikesCard extends HTMLElement {
   }
 }
 
+const UPLOAD_TYPES = ["image/png", "image/jpeg", "image/gif"];
+
+const EDITOR_STYLE = `
+  .citybikes-image { margin-bottom: 24px; }
+  .citybikes-image .label { margin-bottom: 8px; color: var(--primary-text-color); }
+  .citybikes-image .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .citybikes-image img {
+    height: 48px; width: auto; max-width: 96px; object-fit: contain;
+    padding: 4px; border-radius: 8px; border: 1px solid var(--divider-color);
+  }
+  .citybikes-image button {
+    font: inherit; cursor: pointer; padding: 8px 16px; border-radius: 18px;
+    border: 1px solid var(--primary-color); background: none; color: var(--primary-color);
+  }
+  .citybikes-image button.remove { border-color: transparent; color: var(--secondary-text-color); }
+  .citybikes-image button:disabled { opacity: 0.5; cursor: default; }
+  .citybikes-image .status { font-size: 0.9em; color: var(--secondary-text-color); }
+  .citybikes-image .status.error { color: var(--error-color, #db4437); }
+`;
+
 class CityBikesCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = { ...config };
@@ -403,43 +392,115 @@ class CityBikesCardEditor extends HTMLElement {
 
   _render() {
     if (!this._hass || !this._config) return;
-    if (!this._form) {
-      this._form = document.createElement("ha-form");
-      this._form.computeLabel = (schema) =>
-        ({
-          title: "Title",
-          upload: "Bike image (leave empty for the bike icon)",
-          image: "Or an image URL",
-          devices: "Stations (leave empty to show all)",
-        })[schema.name];
-      this._form.addEventListener("value-changed", (ev) => {
-        const { upload, ...config } = ev.detail.value;
-        // An upload or picked media replaces the URL; otherwise keep the typed URL.
-        if (JSON.stringify(upload) !== JSON.stringify(this._form.data.upload)) {
-          config.image = imageFromMedia(upload);
-        }
-        if (!config.title) delete config.title;
-        if (!config.image) delete config.image;
-        if (!config.devices?.length) delete config.devices;
-        this._config = config;
-        this._render();
-        this.dispatchEvent(
-          new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true })
-        );
-      });
-      this.appendChild(this._form);
-    }
+    if (!this._form) this._build();
+
+    // The image part is our own markup, so it does not depend on Home Assistant
+    // internals that may not be loaded in the card editor.
+    const image = this._config.image;
+    this._thumb.hidden = !image;
+    if (image) this._thumb.src = image;
+    this._removeButton.hidden = !image;
+    this._uploadButton.textContent = image ? "Replace image" : "Upload image";
+
     this._form.hass = this._hass;
-    this._form.data = { ...this._config, upload: mediaFromImage(this._config.image) };
+    this._form.data = this._config;
     this._form.schema = [
       { name: "title", selector: { text: {} } },
-      { name: "upload", selector: { media: { accept: ["image/*"], image_upload: true } } },
-      { name: "image", selector: { text: { type: "url" } } },
+      { name: "image", selector: { text: {} } },
       {
         name: "devices",
         selector: { device: { multiple: true, filter: { integration: PLATFORM } } },
       },
     ];
+  }
+
+  _build() {
+    const style = document.createElement("style");
+    style.textContent = EDITOR_STYLE;
+
+    const section = document.createElement("div");
+    section.className = "citybikes-image";
+    section.innerHTML = `
+      <div class="label">Bike image</div>
+      <div class="row">
+        <img alt="" hidden>
+        <button type="button" class="upload">Upload image</button>
+        <button type="button" class="remove" hidden>Remove</button>
+        <span class="status" role="status"></span>
+      </div>
+      <input type="file" accept="${UPLOAD_TYPES.join(",")}" hidden>`;
+    this._thumb = section.querySelector("img");
+    this._uploadButton = section.querySelector(".upload");
+    this._removeButton = section.querySelector(".remove");
+    this._status = section.querySelector(".status");
+    const input = section.querySelector("input");
+
+    this._thumb.addEventListener("error", () => (this._thumb.hidden = true));
+    this._uploadButton.addEventListener("click", () => input.click());
+    this._removeButton.addEventListener("click", () => this._setImage(undefined));
+    input.addEventListener("change", () => {
+      const [file] = input.files;
+      input.value = "";
+      if (file) this._upload(file);
+    });
+
+    this._form = document.createElement("ha-form");
+    this._form.computeLabel = (schema) =>
+      ({
+        title: "Title",
+        image: "Image URL (filled in when you upload; leave empty for the bike icon)",
+        devices: "Stations (leave empty to show all)",
+      })[schema.name];
+    this._form.addEventListener("value-changed", (ev) => this._update(ev.detail.value));
+
+    this.append(style, section, this._form);
+  }
+
+  async _upload(file) {
+    if (!UPLOAD_TYPES.includes(file.type)) {
+      this._showStatus("Use a PNG, JPEG or GIF image.", true);
+      return;
+    }
+    this._uploadButton.disabled = true;
+    this._showStatus("Uploading…");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await this._hass.fetchWithAuth("/api/image/upload", {
+        method: "POST",
+        body,
+      });
+      if (response.status === 413) throw new Error("The image is too large (10 MB at most).");
+      if (!response.ok) throw new Error(`Upload failed (${response.status}).`);
+      const { id } = await response.json();
+      this._showStatus("");
+      this._setImage(`/api/image/serve/${id}/original`);
+    } catch (err) {
+      this._showStatus(err.message || "Upload failed.", true);
+    } finally {
+      this._uploadButton.disabled = false;
+    }
+  }
+
+  _showStatus(text, error = false) {
+    this._status.textContent = text;
+    this._status.classList.toggle("error", error);
+  }
+
+  _setImage(image) {
+    this._update({ ...this._config, image });
+  }
+
+  _update(value) {
+    const config = { ...value };
+    if (!config.title) delete config.title;
+    if (!config.image) delete config.image;
+    if (!config.devices?.length) delete config.devices;
+    this._config = config;
+    this._render();
+    this.dispatchEvent(
+      new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true })
+    );
   }
 }
 

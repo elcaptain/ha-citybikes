@@ -87,13 +87,13 @@ devices:                     # optional; device IDs of CityBikes stations
 
 ### Using a picture of your city's bike
 
-In the card editor, click **Bike image** and upload a picture of the bike, ideally
-a PNG with a transparent background. You can also pick an image you already have
-in your media.
+In the card editor, choose **Upload image** under **Bike image** and pick a picture
+of the bike: a PNG, JPEG or GIF of up to 10 MB, ideally a PNG with a transparent
+background. **Remove** goes back to the bike icon.
 
-To use an image from elsewhere, enter its address in **Or an image URL** instead:
-a link to an image on the web, or `/local/citybike.png` for a file in the `www`
-folder of your Home Assistant configuration.
+To use an image from elsewhere, enter its address in **Image URL** instead: a link
+to an image on the web, or `/local/citybike.png` for a file in the `www` folder of
+your Home Assistant configuration.
 
 If the image cannot be loaded, the card shows the bike icon instead.
 
