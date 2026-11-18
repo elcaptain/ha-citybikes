@@ -5,7 +5,7 @@
  * available bikes, e-bikes and empty docks, with a dock occupancy bar.
  */
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const PLATFORM = "citybikes";
 const KEYS = ["free_bikes", "free_ebikes", "empty_slots", "last_reported"];
 // Stations up to this many docks get one bar segment per dock. Bigger stations
@@ -95,6 +95,37 @@ function escapeHtml(value) {
     /[&<>"']/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
   );
+}
+
+// Images uploaded in the card editor are stored by Home Assistant's image upload
+// and served at a permanent address. Other media is resolved when the card loads.
+const UPLOAD_PREFIX = "media-source://image_upload/";
+const UPLOAD_URL = /^\/api\/image\/serve\/([^/]+)\//;
+
+/** Return the `image` option for a value picked in the editor's media field. */
+function imageFromMedia(media) {
+  const id = media?.media_content_id;
+  if (!id) return undefined;
+  return id.startsWith(UPLOAD_PREFIX)
+    ? `/api/image/serve/${id.slice(UPLOAD_PREFIX.length)}/original`
+    : id;
+}
+
+/** Return the editor's media field value for an `image` option, if it is media. */
+function mediaFromImage(image) {
+  if (typeof image !== "string") return undefined;
+  const upload = image.match(UPLOAD_URL);
+  if (upload) {
+    return {
+      media_content_id: UPLOAD_PREFIX + upload[1],
+      media_content_type: "image",
+      metadata: { title: "Bike image", media_class: "image", thumbnail: image },
+    };
+  }
+  if (image.startsWith("media-source://")) {
+    return { media_content_id: image, media_content_type: "image" };
+  }
+  return undefined;
 }
 
 function numeric(stateObj) {
@@ -241,9 +272,32 @@ class CityBikesCard extends HTMLElement {
 
   _bikeImage() {
     const image = this._config.image;
-    return image && image !== this._failedImage
-      ? `<img src="${escapeHtml(image)}" alt="">`
+    const url = image && image !== this._failedImage ? this._imageUrl(image) : null;
+    return url
+      ? `<img src="${escapeHtml(url)}" alt="">`
       : `<ha-icon icon="mdi:bike"></ha-icon>`;
+  }
+
+  /** Return the address of the image, resolving media from the media browser. */
+  _imageUrl(image) {
+    if (!image.startsWith("media-source://")) return image;
+    if (this._resolving !== image) {
+      this._resolving = image;
+      this._resolvedUrl = null;
+      this._hass
+        .callWS({ type: "media_source/resolve_media", media_content_id: image })
+        .then((result) => {
+          if (this._resolving === image) this._resolvedUrl = result.url;
+        })
+        .catch(() => {
+          this._failedImage = image;
+        })
+        .finally(() => {
+          this._renderKey = null;
+          this._render();
+        });
+    }
+    return this._resolvedUrl;
   }
 
   _renderStation({ deviceId, entities }) {
@@ -354,15 +408,21 @@ class CityBikesCardEditor extends HTMLElement {
       this._form.computeLabel = (schema) =>
         ({
           title: "Title",
-          image: "Bike image URL (leave empty for the bike icon)",
+          upload: "Bike image (leave empty for the bike icon)",
+          image: "Or an image URL",
           devices: "Stations (leave empty to show all)",
         })[schema.name];
       this._form.addEventListener("value-changed", (ev) => {
-        const config = { ...ev.detail.value };
+        const { upload, ...config } = ev.detail.value;
+        // An upload or picked media replaces the URL; otherwise keep the typed URL.
+        if (JSON.stringify(upload) !== JSON.stringify(this._form.data.upload)) {
+          config.image = imageFromMedia(upload);
+        }
         if (!config.title) delete config.title;
         if (!config.image) delete config.image;
         if (!config.devices?.length) delete config.devices;
         this._config = config;
+        this._render();
         this.dispatchEvent(
           new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true })
         );
@@ -370,9 +430,10 @@ class CityBikesCardEditor extends HTMLElement {
       this.appendChild(this._form);
     }
     this._form.hass = this._hass;
-    this._form.data = this._config;
+    this._form.data = { ...this._config, upload: mediaFromImage(this._config.image) };
     this._form.schema = [
       { name: "title", selector: { text: {} } },
+      { name: "upload", selector: { media: { accept: ["image/*"], image_upload: true } } },
       { name: "image", selector: { text: { type: "url" } } },
       {
         name: "devices",
