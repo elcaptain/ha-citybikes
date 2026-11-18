@@ -68,20 +68,32 @@ docks.
 - Follows your theme, light and dark, and the sections layout.
 
 Edit a dashboard, choose **Add card** and pick **CityBikes**. The visual editor lets
-you set a title and pick stations. Without stations it shows every CityBikes
-station, sorted by name.
+you set a title, a bike image and pick stations. Without stations it shows every
+CityBikes station, sorted by name.
 
 ```yaml
 type: custom:citybikes-card
 title: Bikes near home
-devices:            # optional; device IDs of CityBikes stations
+image: /local/citybike.png   # optional; replaces the bike icon
+devices:                     # optional; device IDs of CityBikes stations
   - 0123456789abcdef0123456789abcdef
 ```
 
 | Option    | Description                                                       |
 | --------- | ----------------------------------------------------------------- |
 | `title`   | Optional card title.                                              |
+| `image`   | Optional picture of your network's bike, shown instead of the bike icon. |
 | `devices` | Optional list of station devices. Leave out to show all stations. |
+
+### Using a picture of your city's bike
+
+1. Save a picture of the bike, ideally a PNG with a transparent background, in the
+   `www` folder of your Home Assistant configuration. Create the folder if it does
+   not exist, and restart Home Assistant once after creating it.
+2. Set **Bike image URL** to `/local/` followed by the file name, for example
+   `/local/citybike.png`. A link to an image on the web works too.
+
+If the image cannot be loaded, the card shows the bike icon instead.
 
 The card is loaded automatically once the integration is installed. If it does not
 show up in the card picker right after an update, reload the page.

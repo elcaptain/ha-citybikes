@@ -5,7 +5,7 @@
  * available bikes, e-bikes and empty docks, with a dock occupancy bar.
  */
 
-const VERSION = "1.0.1";
+const VERSION = "1.1.0";
 const PLATFORM = "citybikes";
 const KEYS = ["free_bikes", "free_ebikes", "empty_slots", "last_reported"];
 // Stations up to this many docks get one bar segment per dock. Bigger stations
@@ -58,6 +58,7 @@ const STYLE = `
     color: var(--primary-text-color);
   }
   .count ha-icon { --mdc-icon-size: 26px; color: var(--state-icon-color, var(--secondary-text-color)); }
+  .count img { height: 32px; width: auto; max-width: 64px; object-fit: contain; }
   .count.low { color: var(--warning-color, #ffa600); }
   .count.empty { color: var(--error-color, #db4437); }
   .bar {
@@ -217,6 +218,15 @@ class CityBikesCard extends HTMLElement {
         }</div>`;
 
     this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card>${title}${body}</ha-card>`;
+    // A broken image link falls back to the bike icon, and is not retried.
+    this.shadowRoot.querySelectorAll(".count img").forEach((img) => {
+      img.addEventListener("error", () => {
+        this._failedImage = this._config.image;
+        const icon = document.createElement("ha-icon");
+        icon.setAttribute("icon", "mdi:bike");
+        img.replaceWith(icon);
+      });
+    });
     this.shadowRoot.querySelectorAll(".station").forEach((el) => {
       const open = () => this._moreInfo(el.dataset.entity);
       el.addEventListener("click", open);
@@ -227,6 +237,13 @@ class CityBikesCard extends HTMLElement {
         }
       });
     });
+  }
+
+  _bikeImage() {
+    const image = this._config.image;
+    return image && image !== this._failedImage
+      ? `<img src="${escapeHtml(image)}" alt="">`
+      : `<ha-icon icon="mdi:bike"></ha-icon>`;
   }
 
   _renderStation({ deviceId, entities }) {
@@ -272,7 +289,7 @@ class CityBikesCard extends HTMLElement {
            data-entity="${escapeHtml(entities.free_bikes || "")}">
         <div class="name">${escapeHtml(this._deviceName(deviceId))}</div>
         <div class="count ${countClass}" title="Available bikes">
-          <ha-icon icon="mdi:bike"></ha-icon>${unavailable ? "–" : bikes}
+          ${this._bikeImage()}${unavailable ? "–" : bikes}
         </div>
         <div class="meta">${meta}</div>
         ${bar}
@@ -335,10 +352,15 @@ class CityBikesCardEditor extends HTMLElement {
     if (!this._form) {
       this._form = document.createElement("ha-form");
       this._form.computeLabel = (schema) =>
-        ({ title: "Title", devices: "Stations (leave empty to show all)" })[schema.name];
+        ({
+          title: "Title",
+          image: "Bike image URL (leave empty for the bike icon)",
+          devices: "Stations (leave empty to show all)",
+        })[schema.name];
       this._form.addEventListener("value-changed", (ev) => {
         const config = { ...ev.detail.value };
         if (!config.title) delete config.title;
+        if (!config.image) delete config.image;
         if (!config.devices?.length) delete config.devices;
         this._config = config;
         this.dispatchEvent(
@@ -351,6 +373,7 @@ class CityBikesCardEditor extends HTMLElement {
     this._form.data = this._config;
     this._form.schema = [
       { name: "title", selector: { text: {} } },
+      { name: "image", selector: { text: { type: "url" } } },
       {
         name: "devices",
         selector: { device: { multiple: true, filter: { integration: PLATFORM } } },
