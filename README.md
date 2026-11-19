@@ -60,6 +60,10 @@ The integration comes with a CityBikes card. For each station it shows the numbe
 of available bikes, a bar of how full the docks are, and the e-bikes and empty
 docks.
 
+If you'd rather keep Home Assistant's built-in CityBikes integration, a version of
+this card for it is available on its own as
+[CityBikes Card](https://github.com/elcaptain/ha-citybikes-card).
+
 - Bike counts of 2 or fewer show in orange; empty stations show in red.
 - E-bikes show only for networks that report them.
 - Tap a station to open its details.
